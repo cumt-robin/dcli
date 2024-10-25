@@ -1,5 +1,5 @@
 {
-  "name": "dcli",
+  "name": "@bindev/dcli",
   "version": "1.0.0",
   "description": "cli tools for nodejs fullstack",
   "bin": {
@@ -7,8 +7,7 @@
   },
   "scripts": {
     "lint": "eslint --ext .js --cache bin src",
-    "lint-fix": "eslint --ext .js --fix --cache bin src",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "lint-fix": "eslint --ext .js --fix --cache bin src"
   },
   "keywords": [
     "cli",
@@ -17,6 +16,13 @@
   ],
   "author": "Tusi",
   "license": "MIT",
+  "files": [
+    "bin",
+    "src"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "chalk": "4.1.2",
     "commander": "^12.1.0",

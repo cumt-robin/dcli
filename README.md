@@ -9,3 +9,16 @@ git config core.autocrlf input
 ```shell
 pnpm link --global
 ```
+
+## publish
+
+```shell
+npm login --registry=https://registry.npmjs.org
+npm publish --registry=https://registry.npmjs.org
+```
+
+## 退出登录
+
+```shell
+npm logout --registry=https://registry.npmjs.org
+```
