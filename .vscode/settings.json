@@ -1,0 +1,12 @@
+{
+    "editor.tabSize": 4,
+    "files.eol": "\n",
+    "eslint.validate": ["javascript"],
+    // 保存时不调用格式化，交给 lint fix
+    "editor.formatOnSave": false,
+    // 代码保存动作，调用 lint fix
+    "editor.codeActionsOnSave": {
+        "source.fixAll.eslint": "explicit"
+    },
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
+}
