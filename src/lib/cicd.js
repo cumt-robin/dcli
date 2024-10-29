@@ -7,7 +7,7 @@ const dotenv = require("dotenv");
 const { default: axios } = require("axios");
 const path = require("node:path");
 const { isGitRepository, getGitRemoteUrl, getRemoteBranches, checkCurrentBranchIsClean } = require("../utils/git");
-const { execCmdSync } = require("../utils/cmd");
+const { execCmdAsync } = require("../utils/cmd");
 
 const getRemoteDistFileList = async ({ privateGitlab, projectId, accessToken }) => {
     const allFiles = [];
@@ -90,17 +90,17 @@ const init = async () => {
             return;
         }
         const envFileContent = fs.readFileSync(".gitlab_local_env", { encoding: "utf-8" });
-        const { privateGitlab, pat, projectId } = dotenv.parse(envFileContent);
+        const { privateGitlab, repo } = dotenv.parse(envFileContent);
         if (!privateGitlab) {
             console.warn(chalk.yellow("privateGitlab 配置项不存在，请检查！privateGitlab 是私有 gitlab 的访问地址"));
             return;
         }
-        if (!pat) {
-            console.warn(chalk.yellow("pat 配置项不存在，请检查！pat 是 gitlab 项目的 access token"));
-            return;
-        }
-        if (!projectId) {
-            console.warn(chalk.yellow("projectId 配置项不存在，请检查！projectId 是部署仓库的项目 ID"));
+        if (!repo) {
+            console.warn(
+                chalk.yellow(
+                    "repo 配置项不存在，请检查！repo 是部署仓库的 clone 地址，示例 https://oauth2:{pat}@gitlab.com/xxx/yyy.git，其中 {pat} 部分需要替换为你的 access token ",
+                ),
+            );
             return;
         }
         // 检查是否有 git 仓库
@@ -132,8 +132,8 @@ const init = async () => {
                 return;
             }
             if (isClean === false) {
-                console.log(
-                    chalk.warn(
+                console.warn(
+                    chalk.yellow(
                         "当前分支存在未提交的代码，请先手动处理后再操作！cicd命令执行前必须保持代码仓库是干净的，你可以单独 clone 项目到一个其他目录作为部署使用，避免和写代码专用的目录冲突！",
                     ),
                 );
@@ -177,9 +177,9 @@ const init = async () => {
             // 执行临时分支创建操作
             const tempBranchName = `temp-${targetBranch}-${Date.now()}`;
             try {
-                execCmdSync(`git fetch ${remoteName} ${targetBranch} && git checkout -b ${tempBranchName} ${remoteName}/${targetBranch}`, {
-                    stdio: "inherit",
-                });
+                await execCmdAsync(
+                    `git fetch ${remoteName} ${targetBranch} && git checkout -b ${tempBranchName} ${remoteName}/${targetBranch}`,
+                );
                 // 安装依赖，保证依赖是最新的
                 console.log(chalk.green("install dependencies stage..."));
                 const { installScript } = await inquirer.prompt([
@@ -191,9 +191,7 @@ const init = async () => {
                     },
                 ]);
                 console.log(chalk.green(`install dependencies: ${installScript}...`));
-                execCmdSync(installScript, {
-                    stdio: "inherit",
-                });
+                await execCmdAsync(installScript);
                 // 执行构建
                 console.log(chalk.green("build stage..."));
                 const defaultBuildScript = targetBranch === "release" ? "yarn build:staging" : "yarn build";
@@ -206,108 +204,52 @@ const init = async () => {
                     },
                 ]);
                 console.log(chalk.green(`exec build script: ${buildScript}...`));
-                execCmdSync(buildScript, {
-                    stdio: "inherit",
-                });
+                await execCmdAsync(buildScript);
                 // 执行部署
                 console.log(chalk.green("deploy stage..."));
-
-                // 查询 remote dist 目录情况
-                const spinner = ora(chalk.blue("compare file changes...")).start();
-                const remoteDistResources = await getRemoteDistFileList({ privateGitlab, accessToken: pat, projectId });
-                const remotePathList = remoteDistResources.filter((item) => item.type === "blob").map((item) => item.path);
-                const distPath = path.join(process.cwd(), "dist");
-                const localPathList = getAllFiles(distPath);
-                const localRelativePathList = localPathList.map((item) => path.relative(process.cwd(), item).replace(/\\/g, "/"));
-                // 进行对比
-                const results = compareResources(remotePathList, localRelativePathList);
-                // 生成 actions 和 commit
-                const actions = [];
-                if (results.removed.length) {
-                    actions.push(
-                        ...results.removed.map((item) => ({
-                            action: "delete",
-                            file_path: item,
-                        })),
-                    );
-                }
-                const getFileContentTasks = [];
-                const fileContentMap = {};
-                if (results.added.length) {
-                    getFileContentTasks.push(
-                        ...results.added.map((filePath) =>
-                            readLocalFileContent(path.join(process.cwd(), filePath)).then((content) => {
-                                fileContentMap[filePath] = content;
-                                return content;
-                            }),
-                        ),
-                    );
-                }
-                if (results.modified.length) {
-                    getFileContentTasks.push(
-                        ...results.modified.map((filePath) =>
-                            readLocalFileContent(path.join(process.cwd(), filePath)).then((content) => {
-                                fileContentMap[filePath] = content;
-                                return content;
-                            }),
-                        ),
-                    );
-                }
-                await Promise.all(getFileContentTasks);
-                if (results.added.length) {
-                    actions.push(
-                        ...results.added.map((item) => ({
-                            action: "create",
-                            file_path: item,
-                            content: fileContentMap[item],
-                        })),
-                    );
-                }
-                if (results.modified.length) {
-                    actions.push(
-                        ...results.modified.map((item) => ({
-                            action: "update",
-                            file_path: item,
-                            content: fileContentMap[item],
-                        })),
-                    );
-                }
-                spinner.succeed(chalk.green("compare file changes finished!"));
-
-                await fse.writeFile(path.join(process.cwd(), ".test"), JSON.stringify(actions, null, 4), { encoding: "utf-8" });
-
-                // // 提交 commit
-                spinner.text = "generate commit and submit...";
+                // 创建临时目录
+                const spinner = ora(chalk.blue("creating temp dir...")).start();
+                const tempDir = path.join(process.cwd(), ".dcli/cicd/temp");
+                await fse.ensureDir(tempDir);
+                spinner.succeed(chalk.green("temp dir created!"));
+                spinner.text = chalk.blue("clone repo...");
                 spinner.start();
-                try {
-                    await axios.post(
-                        `${privateGitlab}/api/v4/projects/${projectId}/repository/commits`,
-                        {
-                            branch: targetBranch,
-                            commit_message: `${targetBranch} cli 自动提交`,
-                            actions,
-                        },
-                        {
-                            transformRequest: (data) => JSON.stringify(data),
-                            headers: {
-                                "PRIVATE-TOKEN": pat,
-                                "content-type": "application/json",
-                            },
-                        },
-                    );
-                    spinner.succeed(chalk.green("commit and submit finished!"));
-                    console.log(chalk.green("deploy successfully, you can check it in pipelines"));
-                } catch (error) {
-                    if (error.response) {
-                        console.error("Error Response:", error.response); // 错误信息
-                    }
-                    throw new Error("commit error");
-                }
-            } finally {
-                // 操作完毕后，切换分支，删除临时分支
-                execCmdSync(`git checkout ${targetBranch} && git branch -D ${tempBranchName}`, {
-                    stdio: "inherit",
+                await execCmdAsync(`git clone ${repo} ${tempDir}`);
+                spinner.succeed(chalk.green("repo cloned!"));
+                // 切换分支
+                spinner.text = chalk.blue("switching branch...");
+                spinner.start();
+                await execCmdAsync(`cd ${tempDir} && git checkout ${targetBranch}`);
+                spinner.succeed(chalk.green("branch switched!"));
+                // # dist 目录下的文件移动到临时目录下
+                spinner.text = chalk.blue("copying dist to temp dir...");
+                spinner.start();
+                const repoSplits = repo.split("/");
+                const repoDirName = repoSplits[repoSplits.length - 1].replace(".git", "");
+                const repoDir = path.join(tempDir, repoDirName);
+                const distDir = path.join(process.cwd(), "dist");
+                await fse.copy(distDir, repoDir, {
+                    overwrite: true,
                 });
+                spinner.succeed(chalk.green("dist copied!"));
+                // 提交 commit
+                spinner.text = chalk.blue("generate commit and submit...");
+                spinner.start();
+                await execCmdAsync(`cd ${repoDir} && git add . && git commit -m "deployed by dcli cicd" && git push`);
+                spinner.succeed(chalk.green("commit finished!"));
+                console.log(chalk.green("deploy successfully, you can check it in gitlab repo."));
+            } finally {
+                // 操作完毕后，切换分支，删除临时分支和目录
+                const dcliPath = path.join(process.cwd(), ".dcli");
+                const tasks = [execCmdAsync(`git checkout ${targetBranch} && git branch -D ${tempBranchName}`)];
+                if (fse.pathExists(dcliPath)) {
+                    tasks.push(
+                        fse.rm(dcliPath, {
+                            recursive: true,
+                        }),
+                    );
+                }
+                await Promise.all(tasks);
             }
         }
     }

@@ -45,7 +45,7 @@ function getRemoteBranches({ filter = true, remoteName = "origin" } = {}) {
 
 function checkCurrentBranchIsClean() {
     try {
-        const output = execSync("git status --porcelain", { stdio: "ignore" });
+        const output = execSync("git status --porcelain", { encoding: "utf8" });
         return !output;
     } catch (error) {
         return null;
