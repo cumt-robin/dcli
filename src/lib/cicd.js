@@ -224,18 +224,16 @@ const init = async () => {
                 // # dist 目录下的文件移动到临时目录下
                 spinner.text = chalk.blue("copying dist to temp dir...");
                 spinner.start();
-                const repoSplits = repo.split("/");
-                const repoDirName = repoSplits[repoSplits.length - 1].replace(".git", "");
-                const repoDir = path.join(tempDir, repoDirName);
+                const repoDistDir = path.join(tempDir, "dist");
                 const distDir = path.join(process.cwd(), "dist");
-                await fse.copy(distDir, repoDir, {
+                await fse.copy(distDir, repoDistDir, {
                     overwrite: true,
                 });
                 spinner.succeed(chalk.green("dist copied!"));
                 // 提交 commit
                 spinner.text = chalk.blue("generate commit and submit...");
                 spinner.start();
-                await execCmdAsync(`cd ${repoDir} && git add . && git commit -m "deployed by dcli cicd" && git push`);
+                await execCmdAsync(`cd ${repoDistDir} && git add . && git commit -m "committed by dcli cicd" && git push`);
                 spinner.succeed(chalk.green("commit finished!"));
                 console.log(chalk.green("deploy successfully, you can check it in gitlab repo."));
             } finally {
@@ -252,8 +250,9 @@ const init = async () => {
                 await Promise.all(tasks);
             }
         }
+    } else {
+        console.log(chalk.yellow("you have cancelled the workflow!"));
     }
-    console.log(chalk.yellow("you have cancelled the workflow!"));
 };
 
 module.exports = {
