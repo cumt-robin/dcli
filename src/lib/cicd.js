@@ -4,70 +4,9 @@ const fse = require("fs-extra");
 const chalk = require("chalk");
 const ora = require("ora");
 const dotenv = require("dotenv");
-const { default: axios } = require("axios");
 const path = require("node:path");
 const { isGitRepository, getGitRemoteUrl, getRemoteBranches, checkCurrentBranchIsClean } = require("../utils/git");
 const { execCmdAsync } = require("../utils/cmd");
-
-const getRemoteDistFileList = async ({ privateGitlab, projectId, accessToken }) => {
-    const allFiles = [];
-    let page = 1;
-    let hasMore = true;
-    const perPage = 100; // 每页返回的文件数量
-    while (hasMore) {
-        const res = await axios.get(
-            `${privateGitlab}/api/v4/projects/${projectId}/repository/tree?path=dist&recursive=true&per_page=${perPage}&page=${page}`,
-            {
-                headers: {
-                    "PRIVATE-TOKEN": accessToken,
-                },
-            },
-        );
-
-        if (res.data.length === 0) {
-            hasMore = false;
-        } else {
-            allFiles.push(...res.data);
-            page++; // 增加页码以请求下一页
-        }
-    }
-    return allFiles;
-};
-
-function getAllFiles(dirPath) {
-    let results = [];
-
-    const list = fs.readdirSync(dirPath);
-
-    list.forEach((item) => {
-        const itemPath = path.join(dirPath, item);
-        const stat = fs.statSync(itemPath);
-
-        if (stat.isDirectory()) {
-            results = results.concat(getAllFiles(itemPath));
-        } else {
-            results.push(itemPath);
-        }
-    });
-
-    return results;
-}
-
-function compareResources(remoteList, localList) {
-    const added = localList.filter((item) => !remoteList.includes(item));
-    const removed = remoteList.filter((item) => !localList.includes(item));
-    const modified = localList.filter((item) => remoteList.includes(item));
-    return {
-        added,
-        removed,
-        modified,
-    };
-}
-
-async function readLocalFileContent(filePath) {
-    const content = await fse.readFile(filePath, { encoding: "utf-8" });
-    return content;
-}
 
 const init = async () => {
     // 用户确认
@@ -84,15 +23,17 @@ const init = async () => {
         console.log(chalk.green("start to execute cicd workflow!"));
         // 先检查配置文件
         if (!fs.existsSync(".gitlab_local_env")) {
-            console.warn(
-                chalk.yellow("项目根目录下 .gitlab_local_env 文件不存在，请先配置！该文件需要包含 privateGitlab, pat, projectId 等字段"),
-            );
+            console.warn(chalk.yellow("项目根目录下 .gitlab_local_env 文件不存在，请先配置！该文件需要包含 repo 等字段"));
             return;
         }
-        const envFileContent = fs.readFileSync(".gitlab_local_env", { encoding: "utf-8" });
-        const { privateGitlab, repo } = dotenv.parse(envFileContent);
-        if (!privateGitlab) {
-            console.warn(chalk.yellow("privateGitlab 配置项不存在，请检查！privateGitlab 是私有 gitlab 的访问地址"));
+        const envFileContent = await fse.readFile(".gitlab_local_env", { encoding: "utf-8" });
+        const { sourceRepo, repo } = dotenv.parse(envFileContent);
+        if (!sourceRepo) {
+            console.warn(
+                chalk.yellow(
+                    "sourceRepo 配置项不存在，请检查！sourceRepo 是源码仓库的 clone 地址，用于二次校验，防止 dcli 运行在错误的项目下。示例值： https://gitlab.com/xxx/yyy.git",
+                ),
+            );
             return;
         }
         if (!repo) {
@@ -114,7 +55,7 @@ const init = async () => {
             {
                 type: "input",
                 name: "remoteName",
-                message: "请输入远程仓库源名称，默认是 origin，回车代表选择默认",
+                message: "请输入源代码远程仓库源名称，默认是 origin，回车代表选择默认",
                 default: "origin",
             },
         ]);
@@ -126,6 +67,10 @@ const init = async () => {
                 return;
             }
             console.log(chalk.green(`仓库源地址为：${remoteUrl}`));
+            if (remoteUrl !== sourceRepo) {
+                console.warn(chalk.yellow("当前项目仓库源地址和配置文件中的 sourceRepo 不一致，请检查！"));
+                return;
+            }
             const isClean = checkCurrentBranchIsClean();
             if (isClean === null) {
                 console.warn(chalk.yellow("当前分支状态检查失败"));
@@ -221,7 +166,7 @@ const init = async () => {
                 spinner.start();
                 await execCmdAsync(`cd ${tempDir} && git checkout ${targetBranch}`);
                 spinner.succeed(chalk.green("branch switched!"));
-                // # dist 目录下的文件移动到临时目录下
+                // dist 目录下的文件移动到临时目录下
                 spinner.text = chalk.blue("copying dist to temp dir...");
                 spinner.start();
                 const repoDistDir = path.join(tempDir, "dist");
