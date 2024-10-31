@@ -1,5 +1,4 @@
 const inquirer = require("inquirer").default;
-const fs = require("node:fs");
 const fse = require("fs-extra");
 const chalk = require("chalk");
 const ora = require("ora");
@@ -22,7 +21,7 @@ const init = async () => {
         // 进入流程
         console.log(chalk.green("start to execute cicd workflow!"));
         // 先检查配置文件
-        if (!fs.existsSync(".gitlab_local_env")) {
+        if (!fse.existsSync(".gitlab_local_env")) {
             console.warn(chalk.yellow("项目根目录下 .gitlab_local_env 文件不存在，请先配置！该文件需要包含 repo 等字段"));
             return;
         }
@@ -155,6 +154,12 @@ const init = async () => {
                 // 创建临时目录
                 const spinner = ora(chalk.blue("creating temp dir...")).start();
                 const tempDir = path.join(process.cwd(), ".dcli/cicd/temp");
+                if (fse.existsSync(tempDir)) {
+                    // 清理旧文件
+                    await fse.rm(tempDir, {
+                        recursive: true,
+                    });
+                }
                 await fse.ensureDir(tempDir);
                 spinner.succeed(chalk.green("temp dir created!"));
                 spinner.text = chalk.blue("clone repo...");
@@ -185,7 +190,7 @@ const init = async () => {
                 // 操作完毕后，切换分支，删除临时分支和目录
                 const dcliPath = path.join(process.cwd(), ".dcli");
                 const tasks = [execCmdAsync(`git checkout ${targetBranch} && git branch -D ${tempBranchName}`)];
-                if (fse.pathExists(dcliPath)) {
+                if (fse.existsSync(dcliPath)) {
                     tasks.push(
                         fse.rm(dcliPath, {
                             recursive: true,
