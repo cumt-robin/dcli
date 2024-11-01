@@ -164,13 +164,8 @@ const init = async () => {
                 spinner.succeed(chalk.green("temp dir created!"));
                 spinner.text = chalk.blue("clone repo...");
                 spinner.start();
-                await execCmdAsync(`git clone ${repo} ${tempDir}`);
+                await execCmdAsync(`git clone --depth=1 --branch ${targetBranch} ${repo} ${tempDir}`);
                 spinner.succeed(chalk.green("repo cloned!"));
-                // 切换分支
-                spinner.text = chalk.blue("switching branch...");
-                spinner.start();
-                await execCmdAsync(`cd ${tempDir} && git checkout ${targetBranch}`);
-                spinner.succeed(chalk.green("branch switched!"));
                 // dist 目录下的文件移动到临时目录下
                 spinner.text = chalk.blue("copying dist to temp dir...");
                 spinner.start();
@@ -183,7 +178,7 @@ const init = async () => {
                 // 提交 commit
                 spinner.text = chalk.blue("generate commit and submit...");
                 spinner.start();
-                await execCmdAsync(`cd ${repoDistDir} && git add . && git commit -m "committed by dcli cicd" && git push`);
+                await execCmdAsync(`cd ${tempDir} && git add dist && git commit -m "committed by dcli cicd" && git push`);
                 spinner.succeed(chalk.green("commit finished!"));
                 console.log(chalk.green("deploy successfully, you can check it in gitlab repo."));
             } finally {
