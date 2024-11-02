@@ -1,24 +1,15 @@
-## git 配置
+## 安装
 
 ```shell
-git config core.autocrlf input
+npm install -g @bindev/dcli
 ```
 
-## 本地调试
+## 使用
+
+### dcli cicd
+
+在源代码仓库目录下执行，按照提示交互即可。
 
 ```shell
-pnpm link --global
-```
-
-## publish
-
-```shell
-npm login --registry=https://registry.npmjs.org
-npm publish --registry=https://registry.npmjs.org
-```
-
-## 退出登录
-
-```shell
-npm logout --registry=https://registry.npmjs.org
+dcli cicd
 ```
