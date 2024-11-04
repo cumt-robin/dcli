@@ -193,6 +193,8 @@ const init = async () => {
                     );
                 }
                 await Promise.all(tasks);
+                // 拉取当前分支最新代码，不等待
+                execCmdAsync("git pull");
             }
         }
     } else {
