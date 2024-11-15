@@ -170,6 +170,9 @@ const init = async () => {
                 spinner.text = chalk.blue("copying dist to temp dir...");
                 spinner.start();
                 const repoDistDir = path.join(tempDir, "dist");
+                // 清空部署仓库的 dist 目录，防止越来越多文件
+                await fse.emptyDir(repoDistDir);
+                // 复制 dist 目录到部署仓库
                 const distDir = path.join(process.cwd(), "dist");
                 await fse.copy(distDir, repoDistDir, {
                     overwrite: true,

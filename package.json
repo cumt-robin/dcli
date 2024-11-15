@@ -1,6 +1,6 @@
 {
   "name": "@bindev/dcli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "cli tools for nodejs fullstack",
   "bin": {
     "dcli": "bin/dcli.js"
