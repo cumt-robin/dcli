@@ -8,6 +8,7 @@ function execCmdAsync(command) {
     return new Promise((resolve, reject) => {
         const child = exec(command, (error, stdout, stderr) => {
             if (error) {
+                console.error(error);
                 reject({ error, stdout, stderr });
                 return;
             }
@@ -25,6 +26,7 @@ function execCmdAsync(command) {
         child.on("close", (code) => {
             if (code !== 0) {
                 console.error(`子进程退出码：${code}`);
+                reject(code);
             }
         });
     });

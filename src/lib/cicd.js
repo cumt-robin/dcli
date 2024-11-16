@@ -166,14 +166,19 @@ const init = async () => {
                 spinner.start();
                 await execCmdAsync(`git clone --depth=1 --branch ${targetBranch} ${repo} ${tempDir}`);
                 spinner.succeed(chalk.green("repo cloned!"));
+                const repoDistDir = path.join(tempDir, "dist");
+                // 清空部署仓库的 dist 目录，防止越来越多文件
+                await fse.rm(repoDistDir, {
+                    recursive: true,
+                    force: true,
+                });
+                // 确保部署的 dist 目录存在
+                await fse.ensureDir(repoDistDir);
+                // 复制 dist 目录到部署仓库
+                const distDir = path.join(process.cwd(), "dist");
                 // dist 目录下的文件移动到临时目录下
                 spinner.text = chalk.blue("copying dist to temp dir...");
                 spinner.start();
-                const repoDistDir = path.join(tempDir, "dist");
-                // 清空部署仓库的 dist 目录，防止越来越多文件
-                await fse.emptyDir(repoDistDir);
-                // 复制 dist 目录到部署仓库
-                const distDir = path.join(process.cwd(), "dist");
                 await fse.copy(distDir, repoDistDir, {
                     overwrite: true,
                 });
