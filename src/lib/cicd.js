@@ -4,8 +4,16 @@ const chalk = require("chalk");
 const ora = require("ora");
 const dotenv = require("dotenv");
 const path = require("node:path");
+const { rimraf } = require("rimraf");
 const { isGitRepository, getGitRemoteUrl, getRemoteBranches, checkCurrentBranchIsClean } = require("../utils/git");
 const { execCmdAsync } = require("../utils/cmd");
+
+const safeRm = async (dir) =>
+    rimraf(dir, {
+        maxRetries: 3,
+        retryDelay: 100,
+        preserveRoot: true,
+    });
 
 const init = async () => {
     // 用户确认
@@ -156,9 +164,7 @@ const init = async () => {
                 const tempDir = path.join(process.cwd(), ".dcli/cicd/temp");
                 if (fse.existsSync(tempDir)) {
                     // 清理旧文件
-                    await fse.rm(tempDir, {
-                        recursive: true,
-                    });
+                    await safeRm(tempDir);
                 }
                 await fse.ensureDir(tempDir);
                 spinner.succeed(chalk.green("temp dir created!"));
@@ -168,12 +174,7 @@ const init = async () => {
                 spinner.succeed(chalk.green("repo cloned!"));
                 const repoDistDir = path.join(tempDir, "dist");
                 // 清空部署仓库的 dist 目录，防止越来越多文件
-                await fse.rm(repoDistDir, {
-                    recursive: true,
-                    force: true,
-                });
-                // 确保部署的 dist 目录存在
-                await fse.ensureDir(repoDistDir);
+                await safeRm(repoDistDir);
                 // 复制 dist 目录到部署仓库
                 const distDir = path.join(process.cwd(), "dist");
                 // dist 目录下的文件移动到临时目录下
@@ -194,11 +195,7 @@ const init = async () => {
                 const dcliPath = path.join(process.cwd(), ".dcli");
                 const tasks = [execCmdAsync(`git checkout ${targetBranch} && git branch -D ${tempBranchName}`)];
                 if (fse.existsSync(dcliPath)) {
-                    tasks.push(
-                        fse.rm(dcliPath, {
-                            recursive: true,
-                        }),
-                    );
+                    tasks.push(safeRm(dcliPath));
                 }
                 await Promise.all(tasks);
                 // 拉取当前分支最新代码，不等待
