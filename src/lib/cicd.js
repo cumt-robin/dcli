@@ -35,29 +35,33 @@ const checkEnvConfig = async (ciMode = false) => {
         ? `配置必须包含 ${requiredKeys.join(", ")} 等，可选填 ${optionalKeys.join(", ")}`
         : `配置需要包含 ${requiredKeys.join(", ")}`;
     console.log(chalk.blue(tip));
-    const config = {
-        sourceRepo: process.env.sourceRepo,
-        repo: process.env.repo,
-    };
+
+    const allKeys = [...requiredKeys, ...optionalKeys];
+    const config = {};
+    allKeys.forEach((key) => {
+        config[key] = process.env[key];
+    });
+
     if (fse.existsSync(".gitlab_local_env")) {
         const envFileContent = await fse.readFile(".gitlab_local_env", { encoding: "utf-8" });
         const env = dotenv.parse(envFileContent);
         Object.assign(config, env);
     }
 
-    if (!config.sourceRepo) {
+    if (ciMode) {
+        if (!config.targetBranch) {
+            console.warn(chalk.yellow(warnInfo.targetBranch));
+            return Promise.reject(new Error(warnInfo.targetBranch));
+        }
+    }
+
+    if (!config.sourceRepo && config.ignoreSourceRepoCheck !== "1") {
         console.warn(chalk.yellow(warnInfo.sourceRepo));
         return Promise.reject(new Error(warnInfo.sourceRepo));
     }
     if (!config.repo) {
         console.warn(chalk.yellow(warnInfo.repo));
         return Promise.reject(new Error(warnInfo.sourceRepo));
-    }
-    if (ciMode) {
-        if (!config.targetBranch) {
-            console.warn(chalk.yellow(warnInfo.targetBranch));
-            return Promise.reject(new Error(warnInfo.targetBranch));
-        }
     }
     return config;
 };
