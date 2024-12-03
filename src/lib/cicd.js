@@ -28,7 +28,9 @@ const checkEnvConfig = async (ciMode = false) => {
         targetBranch: "targetBranch 配置项不存在，请检查！targetBranch 是构建部署的目标分支，示例值：release",
     };
     const requiredKeys = ciMode ? ["sourceRepo", "repo", "targetBranch"] : ["sourceRepo", "repo"];
-    const optionalKeys = ciMode ? ["sourceRepoRemoteName", "installScript", "buildScript", "sourceRepoDistDir"] : [];
+    const optionalKeys = ciMode
+        ? ["sourceRepoRemoteName", "installScript", "buildScript", "sourceRepoDistDir", "ignoreSourceRepoCheck"]
+        : [];
     const tip = ciMode
         ? `配置必须包含 ${requiredKeys.join(", ")} 等，可选填 ${optionalKeys.join(", ")}`
         : `配置需要包含 ${requiredKeys.join(", ")}`;
@@ -165,11 +167,15 @@ const execCiMode = async () => {
         installScript = "yarn",
         buildScript,
         sourceRepoDistDir = "dist",
+        ignoreSourceRepoCheck = "0",
     } = await checkEnvConfig(true);
 
     const remoteUrl = await checkGitRemoteUrl(sourceRepoRemoteName);
 
-    await checkIsSameSourceRepo(remoteUrl, sourceRepo);
+    if (ignoreSourceRepoCheck !== "1") {
+        // 在 ci 模式下，可以忽略 sourceRepo 的校验
+        await checkIsSameSourceRepo(remoteUrl, sourceRepo);
+    }
 
     await checkBranchIsClean();
 
