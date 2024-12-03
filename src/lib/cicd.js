@@ -28,7 +28,7 @@ const checkEnvConfig = async (ciMode = false) => {
         targetBranch: "targetBranch 配置项不存在，请检查！targetBranch 是构建部署的目标分支，示例值：release",
     };
     const requiredKeys = ciMode ? ["sourceRepo", "repo", "targetBranch"] : ["sourceRepo", "repo"];
-    const optionalKeys = ciMode ? ["sourceRepoRemoteName", "installScript", "buildScript"] : [];
+    const optionalKeys = ciMode ? ["sourceRepoRemoteName", "installScript", "buildScript", "sourceRepoDistDir"] : [];
     const tip = ciMode
         ? `配置必须包含 ${requiredKeys.join(", ")} 等，可选填 ${optionalKeys.join(", ")}`
         : `配置需要包含 ${requiredKeys.join(", ")}`;
@@ -106,7 +106,7 @@ const checkBranchIsClean = async () => {
 
 const getTempBranchName = (targetBranch) => `temp-${targetBranch}-${Date.now()}`;
 
-const execDeploy = async ({ targetBranch, repo }) => {
+const execDeploy = async ({ targetBranch, repo, sourceRepoDistDir }) => {
     console.log(chalk.green("deploy stage..."));
     // 创建临时目录
     const spinner = ora(chalk.blue("creating temp dir...")).start();
@@ -125,7 +125,7 @@ const execDeploy = async ({ targetBranch, repo }) => {
     // 清空部署仓库的 dist 目录，防止越来越多 hash 文件
     await safeClean(repoDistDir);
     // 复制 dist 目录到部署仓库
-    const distDir = path.join(process.cwd(), "dist");
+    const distDir = path.join(process.cwd(), sourceRepoDistDir);
     // dist 目录下的文件移动到临时目录下
     spinner.text = chalk.blue("copying dist to temp dir...");
     spinner.start();
@@ -164,6 +164,7 @@ const execCiMode = async () => {
         sourceRepoRemoteName = "origin",
         installScript = "yarn",
         buildScript,
+        sourceRepoDistDir = "dist",
     } = await checkEnvConfig(true);
 
     const remoteUrl = await checkGitRemoteUrl(sourceRepoRemoteName);
@@ -187,7 +188,7 @@ const execCiMode = async () => {
         const execBuildScript = buildScript || (targetBranch === "release" ? "yarn build:staging" : "yarn build");
         console.log(chalk.green(`exec build script: ${execBuildScript}...`));
         await execCmdAsync(execBuildScript);
-        await execDeploy({ targetBranch, repo });
+        await execDeploy({ targetBranch, repo, sourceRepoDistDir });
     } finally {
         execCleanWork(targetBranch, tempBranchName);
     }
@@ -296,7 +297,15 @@ const execInteractiveMode = async () => {
             console.log(chalk.green(`exec build script: ${buildScript}...`));
             await execCmdAsync(buildScript);
             // 执行部署
-            await execDeploy({ targetBranch, repo });
+            const { sourceRepoDistDir } = await inquirer.prompt([
+                {
+                    type: "input",
+                    name: "sourceRepoDistDir",
+                    message: `请输入构建产物目录，默认是 dist，回车代表选择默认。选择后会执行部署操作！`,
+                    default: "dist",
+                },
+            ]);
+            await execDeploy({ targetBranch, repo, sourceRepoDistDir });
         } finally {
             execCleanWork(targetBranch, tempBranchName);
         }
