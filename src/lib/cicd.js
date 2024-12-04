@@ -29,7 +29,15 @@ const checkEnvConfig = async (ciMode = false) => {
     };
     const requiredKeys = ciMode ? ["sourceRepo", "repo", "targetBranch"] : ["sourceRepo", "repo"];
     const optionalKeys = ciMode
-        ? ["sourceRepoRemoteName", "installScript", "buildScript", "sourceRepoDistDir", "ignoreSourceRepoCheck"]
+        ? [
+              "sourceRepoRemoteName",
+              "installScript",
+              "buildScript",
+              "sourceRepoDistDir",
+              "ignoreSourceRepoCheck",
+              "gitUserEmail",
+              "gitUserName",
+          ]
         : [];
     const tip = ciMode
         ? `配置必须包含 ${requiredKeys.join(", ")} 等，可选填 ${optionalKeys.join(", ")}`
@@ -112,7 +120,7 @@ const checkBranchIsClean = async () => {
 
 const getTempBranchName = (targetBranch) => `temp-${targetBranch}-${Date.now()}`;
 
-const execDeploy = async ({ targetBranch, repo, sourceRepoDistDir }) => {
+const execDeploy = async ({ targetBranch, repo, sourceRepoDistDir, gitUserEmail, gitUserName }) => {
     console.log(chalk.green("deploy stage..."));
     // 创建临时目录
     const spinner = ora(chalk.blue("creating temp dir...")).start();
@@ -142,7 +150,9 @@ const execDeploy = async ({ targetBranch, repo, sourceRepoDistDir }) => {
     // 提交 commit
     spinner.text = chalk.blue("generate commit and submit...");
     spinner.start();
-    await execCmdAsync(`cd ${tempDir} && git add dist && git commit -m "committed by dcli cicd" && git push`);
+    await execCmdAsync(
+        `cd ${tempDir} && git config user.email "${gitUserEmail || "cicdbot@dcli.bindev"}" && git config user.name "${gitUserName || "cicdbot"}" && git add dist && git commit -m "committed by dcli cicd" && git push`,
+    );
     spinner.succeed(chalk.green("commit finished!"));
     console.log(chalk.green("deploy successfully, you can check it in gitlab repo."));
 };
@@ -172,6 +182,8 @@ const execCiMode = async () => {
         buildScript,
         sourceRepoDistDir = "dist",
         ignoreSourceRepoCheck = "0",
+        gitUserEmail,
+        gitUserName,
     } = await checkEnvConfig(true);
 
     const remoteUrl = await checkGitRemoteUrl(sourceRepoRemoteName);
@@ -198,7 +210,7 @@ const execCiMode = async () => {
         const execBuildScript = buildScript || (targetBranch === "release" ? "yarn build:staging" : "yarn build");
         console.log(chalk.green(`exec build script: ${execBuildScript}...`));
         await execCmdAsync(execBuildScript);
-        await execDeploy({ targetBranch, repo, sourceRepoDistDir });
+        await execDeploy({ targetBranch, repo, sourceRepoDistDir, gitUserEmail, gitUserName });
     } finally {
         execCleanWork(targetBranch, tempBranchName);
     }
@@ -223,7 +235,7 @@ const execInteractiveMode = async () => {
         await checkIsGitRepo();
 
         // 检查配置文件
-        const { sourceRepo, repo } = await checkEnvConfig();
+        const { sourceRepo, repo, gitUserEmail, gitUserName } = await checkEnvConfig();
 
         const { remoteName } = await inquirer.prompt([
             {
@@ -315,7 +327,7 @@ const execInteractiveMode = async () => {
                     default: "dist",
                 },
             ]);
-            await execDeploy({ targetBranch, repo, sourceRepoDistDir });
+            await execDeploy({ targetBranch, repo, sourceRepoDistDir, gitUserEmail, gitUserName });
         } finally {
             execCleanWork(targetBranch, tempBranchName);
         }
