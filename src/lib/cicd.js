@@ -35,10 +35,11 @@ const checkEnvConfig = async (ciMode = false) => {
               "buildScript",
               "sourceRepoDistDir",
               "ignoreSourceRepoCheck",
+              "ignoreCleanAfterFinished",
               "gitUserEmail",
               "gitUserName",
           ]
-        : [];
+        : ["gitUserEmail", "gitUserName"];
     const tip = ciMode
         ? `配置必须包含 ${requiredKeys.join(", ")} 等，可选填 ${optionalKeys.join(", ")}`
         : `配置需要包含 ${requiredKeys.join(", ")}`;
@@ -182,6 +183,7 @@ const execCiMode = async () => {
         buildScript,
         sourceRepoDistDir = "dist",
         ignoreSourceRepoCheck = "0",
+        ignoreCleanAfterFinished = "0",
         gitUserEmail,
         gitUserName,
     } = await checkEnvConfig(true);
@@ -212,7 +214,9 @@ const execCiMode = async () => {
         await execCmdAsync(execBuildScript);
         await execDeploy({ targetBranch, repo, sourceRepoDistDir, gitUserEmail, gitUserName });
     } finally {
-        execCleanWork(targetBranch, tempBranchName);
+        if (ignoreCleanAfterFinished !== "1") {
+            execCleanWork(targetBranch, tempBranchName);
+        }
     }
 };
 
