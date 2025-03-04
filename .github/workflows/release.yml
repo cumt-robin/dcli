@@ -25,7 +25,10 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Run release-it
-        run: pnpm run release-ci
+        run: |
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+          git config --global user.name "github-actions[bot]"
+          pnpm run release-ci
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
           GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN }}
