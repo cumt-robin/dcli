@@ -1,5 +1,7 @@
 # Changelog
 
+## [1.4.2](https://github.com/cumt-robin/dcli/compare/1.4.1...1.4.2) (2025-03-04)
+
 ## [1.4.1](https://github.com/cumt-robin/dcli/compare/1.4.0...1.4.1) (2025-03-04)
 
 # 1.4.0 (2025-03-04)
