@@ -20,6 +20,7 @@ jobs:
         run: pnpm install  # 使用 pnpm 安装依赖
 
       - name: Run release-it
-        run: pnpm run release  # 执行 release-it
+        run: pnpm run release-ci  # 执行 release-it
         env:
           NPM_TOKEN: ${{ secrets.NPM_TOKEN }}  # 确保在 GitHub Secrets 中设置了 NPM_TOKEN
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}  # 确保在 GitHub Secrets 中设置了 GITHUB_TOKEN

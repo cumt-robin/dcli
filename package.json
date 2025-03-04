@@ -8,6 +8,7 @@
   "scripts": {
     "lint": "eslint --ext .js --cache bin src",
     "lint-fix": "eslint --ext .js --fix --cache bin src",
+    "release": "release-it",
     "release-ci": "release-it --ci"
   },
   "keywords": [
