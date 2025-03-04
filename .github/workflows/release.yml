@@ -1,0 +1,25 @@
+name: Create Release
+
+on:
+  workflow_dispatch:  # 允许手动触发工作流
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'  # 或者你项目使用的其他版本
+
+      - name: Install dependencies
+        run: pnpm install  # 使用 pnpm 安装依赖
+
+      - name: Run release-it
+        run: pnpm run release  # 执行 release-it
+        env:
+          NPM_TOKEN: ${{ secrets.NPM_TOKEN }}  # 确保在 GitHub Secrets 中设置了 NPM_TOKEN

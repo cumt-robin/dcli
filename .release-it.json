@@ -1,0 +1,23 @@
+{
+    "git": {
+        "tag": true,
+        "addUntrackedFiles": true,
+        "requireCleanWorkingDir": true
+    },
+    "npm": {
+        "publish": true,
+        "publishConfig": {
+            "access": "public",
+            "registry": "https://registry.npmjs.org"
+        }
+    },
+    "github": {
+        "release": true
+    },
+    "plugins": {
+        "@release-it/conventional-changelog": {
+            "preset": "angular",
+            "infile": "CHANGELOG.md"
+        }
+    }
+}
