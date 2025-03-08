@@ -9,7 +9,9 @@
     "lint": "eslint --ext .js --cache bin src",
     "lint-fix": "eslint --ext .js --fix --cache bin src",
     "release": "release-it",
-    "release-ci": "release-it --ci"
+    "release-ci": "release-it --ci",
+    "commit": "cz",
+    "prepare": "husky"
   },
   "keywords": [
     "cli",
@@ -37,11 +39,30 @@
     "rimraf": "^5.0.10"
   },
   "devDependencies": {
+    "@commitlint/cli": "^19.8.0",
+    "@commitlint/config-conventional": "^19.8.0",
+    "@eslint/js": "^9.21.0",
     "@release-it/conventional-changelog": "^10.0.0",
-    "eslint": "^8.57.0",
-    "eslint-config-airbnb-base": "^15.0.0",
-    "eslint-config-prettier": "^9.1.0",
-    "eslint-plugin-prettier": "^5.2.1",
+    "commitizen": "^4.3.1",
+    "commitlint": "^19.7.1",
+    "cz-conventional-changelog": "^3.3.0",
+    "eslint": "^9.21.0",
+    "eslint-config-prettier": "^10.0.2",
+    "eslint-plugin-prettier": "^5.2.3",
+    "globals": "^16.0.0",
+    "husky": "^9.1.7",
+    "lint-staged": "^15.4.3",
+    "prettier": "^3.5.3",
     "release-it": "^18.1.2"
+  },
+  "lint-staged": {
+    "*.js": [
+      "eslint --fix"
+    ]
+  },
+  "config": {
+    "commitizen": {
+      "path": "./node_modules/cz-conventional-changelog"
+    }
   }
 }

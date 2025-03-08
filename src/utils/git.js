@@ -12,6 +12,7 @@ function isGitRepository() {
         execSync("git status", { stdio: "ignore" });
         return true; // 如果没有抛出错误，则是 Git 仓库
     } catch (error) {
+        console.error(error);
         return false; // 如果抛出错误，则不是 Git 仓库
     }
 }
@@ -22,6 +23,7 @@ function getGitRemoteUrl(remoteName = "origin") {
         const output = execSync(`git config --get remote.${remoteName}.url`, { encoding: "utf8" });
         return output.trim(); // 去掉多余的空白字符
     } catch (error) {
+        console.error(error);
         return null; // 返回 null 表示未能获取信息
     }
 }
@@ -39,6 +41,7 @@ function getRemoteBranches({ filter = true, remoteName = "origin" } = {}) {
         }
         return lines;
     } catch (error) {
+        console.error(error);
         return null; // 返回 null 表示未能获取信息
     }
 }
@@ -48,6 +51,7 @@ function checkCurrentBranchIsClean() {
         const output = execSync("git status --porcelain", { encoding: "utf8" });
         return !output;
     } catch (error) {
+        console.error(error);
         return null;
     }
 }
