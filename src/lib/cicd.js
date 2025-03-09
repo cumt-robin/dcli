@@ -38,8 +38,10 @@ const checkEnvConfig = async (ciMode = false) => {
               "ignoreCleanAfterFinished",
               "gitUserEmail",
               "gitUserName",
+              "beforeBuildScript",
+              "afterBuildScript",
           ]
-        : ["gitUserEmail", "gitUserName"];
+        : ["gitUserEmail", "gitUserName", "beforeBuildScript", "afterBuildScript"];
     const tip = ciMode
         ? `配置必须包含 ${requiredKeys.join(", ")} 等，可选填 ${optionalKeys.join(", ")}`
         : `配置需要包含 ${requiredKeys.join(", ")}`;
@@ -186,6 +188,8 @@ const execCiMode = async () => {
         ignoreCleanAfterFinished = "0",
         gitUserEmail,
         gitUserName,
+        beforeBuildScript,
+        afterBuildScript,
     } = await checkEnvConfig(true);
 
     const remoteUrl = await checkGitRemoteUrl(sourceRepoRemoteName);
@@ -209,9 +213,20 @@ const execCiMode = async () => {
         console.log(chalk.green(`install script: ${installScript}...`));
         await execCmdAsync(installScript);
         console.log(chalk.green("build stage..."));
+        // beforeBuild
+        if (beforeBuildScript) {
+            console.log(chalk.green(`exec before build script: ${beforeBuildScript}...`));
+            await execCmdAsync(beforeBuildScript);
+        }
         const execBuildScript = buildScript || (targetBranch === "release" ? "yarn build:staging" : "yarn build");
         console.log(chalk.green(`exec build script: ${execBuildScript}...`));
         await execCmdAsync(execBuildScript);
+        // afterBuild
+        if (afterBuildScript) {
+            console.log(chalk.green(`exec after build script: ${afterBuildScript}...`));
+            await execCmdAsync(afterBuildScript);
+        }
+        // 执行部署
         await execDeploy({ targetBranch, repo, sourceRepoDistDir, gitUserEmail, gitUserName });
     } finally {
         if (ignoreCleanAfterFinished !== "1") {
@@ -311,6 +326,18 @@ const execInteractiveMode = async () => {
             await execCmdAsync(installScript);
             // 执行构建
             console.log(chalk.green("build stage..."));
+            // beforeBuild
+            const { beforeBuildScript } = await inquirer.prompt([
+                {
+                    type: "input",
+                    name: "beforeBuildScript",
+                    message: "请输入构建前需要执行的脚本，回车代表不执行",
+                },
+            ]);
+            if (beforeBuildScript) {
+                console.log(chalk.green(`exec before build script: ${beforeBuildScript}...`));
+                await execCmdAsync(beforeBuildScript);
+            }
             const defaultBuildScript = targetBranch === "release" ? "yarn build:staging" : "yarn build";
             const { buildScript } = await inquirer.prompt([
                 {
@@ -322,6 +349,18 @@ const execInteractiveMode = async () => {
             ]);
             console.log(chalk.green(`exec build script: ${buildScript}...`));
             await execCmdAsync(buildScript);
+            // afterBuild
+            const { afterBuildScript } = await inquirer.prompt([
+                {
+                    type: "input",
+                    name: "afterBuildScript",
+                    message: "请输入构建后需要执行的脚本，回车代表不执行",
+                },
+            ]);
+            if (afterBuildScript) {
+                console.log(chalk.green(`exec after build script: ${afterBuildScript}...`));
+                await execCmdAsync(afterBuildScript);
+            }
             // 执行部署
             const { sourceRepoDistDir } = await inquirer.prompt([
                 {
