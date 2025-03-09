@@ -7,7 +7,7 @@ git config core.autocrlf input
 ## 本地调试
 
 ```shell
-pnpm link --global
+npm link
 ```
 
 ## publish
