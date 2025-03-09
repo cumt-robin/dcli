@@ -1,5 +1,7 @@
 # Changelog
 
+## 1.4.8 (2025-03-09)
+
 ## 1.4.5 (2025-03-06)
 
 ## [1.4.2](https://github.com/cumt-robin/dcli/compare/1.4.1...1.4.2) (2025-03-04)
